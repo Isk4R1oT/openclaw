@@ -7,6 +7,8 @@ import {
   getToday,
   generateId,
   writeSessionLog,
+  writeAssignmentMd,
+  writeStatsMd,
   updateDailyStats,
 } from "./storage.js";
 
@@ -29,7 +31,9 @@ export function createSessionStartTool(api: OpenClawPluginApi) {
       "Start a new study session. Call this at the beginning of every mentoring session to track time.",
     parameters: Type.Object({
       topics: Type.Optional(
-        Type.Array(Type.String(), { description: "Initial topics for this session" }),
+        Type.Array(Type.String(), {
+          description: "Initial topics for this session",
+        }),
       ),
     }),
     async execute(_toolCallId: string, params: { topics?: string[] }) {
@@ -66,7 +70,8 @@ export function createSessionStartTool(api: OpenClawPluginApi) {
       saveData(dataDir, data);
       writeSessionLog(dataDir, session);
 
-      const todayMinutes = data.dailyStats.find((ds) => ds.date === getToday())?.totalMinutes || 0;
+      const todayMinutes =
+        data.dailyStats.find((ds) => ds.date === getToday())?.totalMinutes || 0;
       const goalMin = data.settings.dailyGoalMinutes;
       const remaining = Math.max(0, goalMin - todayMinutes);
 
@@ -89,32 +94,43 @@ export function createSessionEndTool(api: OpenClawPluginApi) {
     label: "End Study Session",
     description: "End the current study session. Logs time and topics covered.",
     parameters: Type.Object({
-      notes: Type.Optional(Type.String({ description: "Session summary notes" })),
+      notes: Type.Optional(
+        Type.String({ description: "Session summary notes" }),
+      ),
       topics: Type.Optional(
         Type.Array(Type.String(), { description: "Topics covered in session" }),
       ),
     }),
-    async execute(_toolCallId: string, params: { notes?: string; topics?: string[] }) {
+    async execute(
+      _toolCallId: string,
+      params: { notes?: string; topics?: string[] },
+    ) {
       const data = loadData(dataDir);
       const active = data.sessions.find((s) => s.status === "active");
 
       if (!active) {
         return {
-          content: [{ type: "text" as const, text: "No active session to end." }],
+          content: [
+            { type: "text" as const, text: "No active session to end." },
+          ],
         };
       }
 
       active.endTime = new Date().toISOString();
       active.status = "completed";
       active.durationMinutes = Math.round(
-        (new Date(active.endTime).getTime() - new Date(active.startTime).getTime()) / 60000,
+        (new Date(active.endTime).getTime() -
+          new Date(active.startTime).getTime()) /
+          60000,
       );
       if (params.notes) active.notes = params.notes;
-      if (params.topics) active.topics = [...new Set([...active.topics, ...params.topics])];
+      if (params.topics)
+        active.topics = [...new Set([...active.topics, ...params.topics])];
 
       updateDailyStats(data);
       saveData(dataDir, data);
       writeSessionLog(dataDir, active);
+      writeStatsMd(dataDir, data);
 
       const todayStats = data.dailyStats.find((ds) => ds.date === getToday());
       const goalMet =
@@ -208,7 +224,9 @@ export function createAssignmentCreateTool(api: OpenClawPluginApi) {
         minimum: 1,
         maximum: 5,
       }),
-      description: Type.String({ description: "Full assignment description and requirements" }),
+      description: Type.String({
+        description: "Full assignment description and requirements",
+      }),
       dueDate: Type.Optional(
         Type.String({ description: "Due date in YYYY-MM-DD format" }),
       ),
@@ -242,12 +260,13 @@ export function createAssignmentCreateTool(api: OpenClawPluginApi) {
 
       data.assignments.push(assignment);
       saveData(dataDir, data);
+      writeAssignmentMd(dataDir, assignment);
 
       return {
         content: [
           {
             type: "text" as const,
-            text: `Assignment created!\nID: ${assignment.id}\nTitle: ${assignment.title}\nType: ${assignment.type} | Difficulty: ${"★".repeat(assignment.difficulty)}${"☆".repeat(5 - assignment.difficulty)}\n${assignment.dueDate ? `Due: ${assignment.dueDate}` : "No deadline"}\nTopics: ${assignment.relatedTopics.join(", ") || "—"}`,
+            text: `Assignment created!\nID: ${assignment.id}\nTitle: ${assignment.title}\nType: ${assignment.type} | Difficulty: ${"★".repeat(assignment.difficulty)}${"☆".repeat(5 - assignment.difficulty)}\n${assignment.dueDate ? `Due: ${assignment.dueDate}` : "No deadline"}\nTopics: ${assignment.relatedTopics.join(", ") || "—"}\nSaved to: ~/.mentor/assignments/${assignment.id}.md`,
           },
         ],
       };
@@ -262,13 +281,28 @@ export function createAssignmentGradeTool(api: OpenClawPluginApi) {
   return {
     name: "assignment_grade",
     label: "Grade Assignment",
-    description: "Grade a submitted assignment. Provide scores for correctness, depth, and clarity.",
+    description:
+      "Grade a submitted assignment. Provide scores for correctness, depth, and clarity.",
     parameters: Type.Object({
       assignmentId: Type.String({ description: "Assignment ID to grade" }),
-      correctness: Type.Number({ description: "Correctness score 1-5", minimum: 1, maximum: 5 }),
-      depth: Type.Number({ description: "Depth of understanding 1-5", minimum: 1, maximum: 5 }),
-      clarity: Type.Number({ description: "Clarity of explanation 1-5", minimum: 1, maximum: 5 }),
-      feedback: Type.String({ description: "Detailed feedback on the submission" }),
+      correctness: Type.Number({
+        description: "Correctness score 1-5",
+        minimum: 1,
+        maximum: 5,
+      }),
+      depth: Type.Number({
+        description: "Depth of understanding 1-5",
+        minimum: 1,
+        maximum: 5,
+      }),
+      clarity: Type.Number({
+        description: "Clarity of explanation 1-5",
+        minimum: 1,
+        maximum: 5,
+      }),
+      feedback: Type.String({
+        description: "Detailed feedback on the submission",
+      }),
     }),
     async execute(
       _toolCallId: string,
@@ -281,11 +315,18 @@ export function createAssignmentGradeTool(api: OpenClawPluginApi) {
       },
     ) {
       const data = loadData(dataDir);
-      const assignment = data.assignments.find((a) => a.id === params.assignmentId);
+      const assignment = data.assignments.find(
+        (a) => a.id === params.assignmentId,
+      );
 
       if (!assignment) {
         return {
-          content: [{ type: "text" as const, text: `Assignment ${params.assignmentId} not found.` }],
+          content: [
+            {
+              type: "text" as const,
+              text: `Assignment ${params.assignmentId} not found.`,
+            },
+          ],
         };
       }
 
@@ -300,8 +341,13 @@ export function createAssignmentGradeTool(api: OpenClawPluginApi) {
 
       updateDailyStats(data);
       saveData(dataDir, data);
+      writeAssignmentMd(dataDir, assignment);
+      writeStatsMd(dataDir, data);
 
-      const avg = ((params.correctness + params.depth + params.clarity) / 3).toFixed(1);
+      const avg = (
+        (params.correctness + params.depth + params.clarity) /
+        3
+      ).toFixed(1);
 
       return {
         content: [
@@ -334,7 +380,9 @@ export function createAssignmentListTool(api: OpenClawPluginApi) {
           { description: "Filter by status (default: pending)" },
         ),
       ),
-      limit: Type.Optional(Type.Number({ description: "Max results (default: 10)" })),
+      limit: Type.Optional(
+        Type.Number({ description: "Max results (default: 10)" }),
+      ),
     }),
     async execute(
       _toolCallId: string,
@@ -352,7 +400,9 @@ export function createAssignmentListTool(api: OpenClawPluginApi) {
 
       if (filtered.length === 0) {
         return {
-          content: [{ type: "text" as const, text: `No ${status} assignments found.` }],
+          content: [
+            { type: "text" as const, text: `No ${status} assignments found.` },
+          ],
         };
       }
 
@@ -361,7 +411,10 @@ export function createAssignmentListTool(api: OpenClawPluginApi) {
           ? ` | Grade: ${((a.grade.correctness + a.grade.depth + a.grade.clarity) / 3).toFixed(1)}/5`
           : "";
         const due = a.dueDate ? ` | Due: ${a.dueDate}` : "";
-        const overdue = a.dueDate && a.dueDate < getToday() && a.status !== "graded" ? " ⚠ OVERDUE" : "";
+        const overdue =
+          a.dueDate && a.dueDate < getToday() && a.status !== "graded"
+            ? " ⚠ OVERDUE"
+            : "";
         return `- [${a.status}] ${a.title} (${a.type}, L${a.difficulty})${due}${grade}${overdue}\n  ID: ${a.id}`;
       });
 
@@ -382,9 +435,12 @@ export function createStudyHistoryTool(api: OpenClawPluginApi) {
   return {
     name: "study_history",
     label: "Study History",
-    description: "Get study history for a date range. Shows sessions, topics, and time spent.",
+    description:
+      "Get study history for a date range. Shows sessions, topics, and time spent.",
     parameters: Type.Object({
-      days: Type.Optional(Type.Number({ description: "Number of days back (default: 7)" })),
+      days: Type.Optional(
+        Type.Number({ description: "Number of days back (default: 7)" }),
+      ),
     }),
     async execute(_toolCallId: string, params: { days?: number }) {
       const data = loadData(dataDir);
@@ -399,18 +455,26 @@ export function createStudyHistoryTool(api: OpenClawPluginApi) {
 
       if (recentStats.length === 0) {
         return {
-          content: [{ type: "text" as const, text: `No study data in the last ${days} days.` }],
+          content: [
+            {
+              type: "text" as const,
+              text: `No study data in the last ${days} days.`,
+            },
+          ],
         };
       }
 
       const totalMin = recentStats.reduce((s, d) => s + d.totalMinutes, 0);
       const avgMin = Math.round(totalMin / days);
       const daysStudied = recentStats.filter((d) => d.totalMinutes > 0).length;
-      const allTopics = [...new Set(recentStats.flatMap((d) => d.topicsCovered))];
+      const allTopics = [
+        ...new Set(recentStats.flatMap((d) => d.topicsCovered)),
+      ];
 
       const dayLines = recentStats.map((d) => {
         const bar = "█".repeat(Math.round(d.totalMinutes / 10));
-        const goalMark = d.totalMinutes >= data.settings.dailyGoalMinutes ? " ✓" : "";
+        const goalMark =
+          d.totalMinutes >= data.settings.dailyGoalMinutes ? " ✓" : "";
         return `${d.date}: ${d.totalMinutes} min ${bar}${goalMark}`;
       });
 

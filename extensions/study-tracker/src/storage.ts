@@ -1,7 +1,12 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
-import type { StudyTrackerData, StudySession, Assignment, DailyStats } from "./types.js";
+import type {
+  StudyTrackerData,
+  StudySession,
+  Assignment,
+  DailyStats,
+} from "./types.js";
 
 function resolveDataDir(dataDir: string): string {
   return dataDir.replace("~", homedir());
@@ -97,10 +102,102 @@ export function writeSessionLog(dataDir: string, session: StudySession): void {
   writeFileSync(logPath, content, "utf-8");
 }
 
+export function writeAssignmentMd(
+  dataDir: string,
+  assignment: Assignment,
+): void {
+  const resolved = resolveDataDir(dataDir);
+  const dir = join(resolved, "assignments");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+  const gradePart = assignment.grade
+    ? `\n## Grade\n- Correctness: ${assignment.grade.correctness}/5\n- Depth: ${assignment.grade.depth}/5\n- Clarity: ${assignment.grade.clarity}/5\n- Average: ${((assignment.grade.correctness + assignment.grade.depth + assignment.grade.clarity) / 3).toFixed(1)}/5\n\n### Feedback\n${assignment.grade.feedback}\n`
+    : "";
+
+  const submissionPart = assignment.submission
+    ? `\n## Submission\n${assignment.submission}\n`
+    : "";
+
+  const content = `# Assignment: ${assignment.title}
+- ID: ${assignment.id}
+- Type: ${assignment.type}
+- Difficulty: ${"★".repeat(assignment.difficulty)}${"☆".repeat(5 - assignment.difficulty)}
+- Status: ${assignment.status}
+- Created: ${assignment.createdAt}
+- Due: ${assignment.dueDate || "no deadline"}
+- Completed: ${assignment.completedAt || "—"}
+- Topics: ${assignment.relatedTopics.join(", ") || "none"}
+
+## Description
+${assignment.description}
+${submissionPart}${gradePart}`;
+
+  writeFileSync(join(dir, `${assignment.id}.md`), content, "utf-8");
+}
+
+export function writeStatsMd(dataDir: string, data: StudyTrackerData): void {
+  const resolved = resolveDataDir(dataDir);
+  const path = join(resolved, "stats.md");
+
+  const graded = data.assignments.filter((a) => a.status === "graded");
+  const avgGrade =
+    graded.length > 0
+      ? (
+          graded.reduce((s, a) => {
+            const g = a.grade!;
+            return s + (g.correctness + g.depth + g.clarity) / 3;
+          }, 0) / graded.length
+        ).toFixed(1)
+      : "—";
+
+  // Weekly breakdown
+  const last7 = data.dailyStats.slice(-7);
+  const weekLines = last7.map((d) => {
+    const bar = "█".repeat(Math.round(d.totalMinutes / 10));
+    return `| ${d.date} | ${d.totalMinutes} min | ${d.sessionsCount} | ${d.topicsCovered.join(", ") || "—"} | ${bar} |`;
+  });
+
+  const content = `# Study Statistics
+Updated: ${new Date().toISOString()}
+
+## Overview
+- Total study time: **${data.totalHours.toFixed(1)} hours**
+- Total sessions: **${data.sessions.length}**
+- Current streak: **${data.currentStreak} days**
+- Longest streak: **${data.longestStreak} days**
+- Daily goal: ${data.settings.dailyGoalMinutes} min
+
+## Assignments
+- Total: ${data.assignments.length}
+- Pending: ${data.assignments.filter((a) => a.status === "pending").length}
+- In Progress: ${data.assignments.filter((a) => a.status === "in_progress").length}
+- Graded: ${graded.length}
+- Average grade: ${avgGrade}/5
+
+## Last 7 Days
+| Date | Time | Sessions | Topics | Progress |
+|------|------|----------|--------|----------|
+${weekLines.join("\n")}
+
+## All Topics Covered
+${
+  [...new Set(data.sessions.flatMap((s) => s.topics))]
+    .sort()
+    .map((t) => `- ${t}`)
+    .join("\n") || "none yet"
+}
+`;
+
+  writeFileSync(path, content, "utf-8");
+}
+
 export function updateDailyStats(data: StudyTrackerData): void {
   const today = getToday();
   const todaySessions = data.sessions.filter((s) => s.date === today);
-  const totalMinutes = todaySessions.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const totalMinutes = todaySessions.reduce(
+    (sum, s) => sum + s.durationMinutes,
+    0,
+  );
   const topics = [...new Set(todaySessions.flatMap((s) => s.topics))];
   const completedToday = data.assignments.filter(
     (a) => a.completedAt && a.completedAt.startsWith(today),
@@ -113,7 +210,9 @@ export function updateDailyStats(data: StudyTrackerData): void {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split("T")[0];
     const hadYesterday = data.dailyStats.some(
-      (ds) => ds.date === yesterdayStr && ds.totalMinutes >= data.settings.dailyGoalMinutes,
+      (ds) =>
+        ds.date === yesterdayStr &&
+        ds.totalMinutes >= data.settings.dailyGoalMinutes,
     );
     const streakDay = hadYesterday ? data.currentStreak + 1 : 1;
 
@@ -134,7 +233,8 @@ export function updateDailyStats(data: StudyTrackerData): void {
   existing.assignmentsCompleted = completedToday;
 
   // Update global stats
-  data.totalHours = data.sessions.reduce((sum, s) => sum + s.durationMinutes, 0) / 60;
+  data.totalHours =
+    data.sessions.reduce((sum, s) => sum + s.durationMinutes, 0) / 60;
   if (totalMinutes >= data.settings.dailyGoalMinutes) {
     data.currentStreak = existing.streakDay;
     if (data.currentStreak > data.longestStreak) {
