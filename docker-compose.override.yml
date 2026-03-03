@@ -1,0 +1,13 @@
+# AI Mentor Override — adds mentor data volume and Anthropic API key
+services:
+  openclaw-gateway:
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    volumes:
+      - ${MENTOR_DATA_DIR:-./mentor-data}:/home/node/.mentor
+
+  openclaw-cli:
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    volumes:
+      - ${MENTOR_DATA_DIR:-./mentor-data}:/home/node/.mentor

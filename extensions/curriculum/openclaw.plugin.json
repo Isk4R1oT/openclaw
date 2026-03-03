@@ -1,0 +1,14 @@
+{
+  "id": "curriculum",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "dataDir": {
+        "type": "string",
+        "default": "~/.mentor",
+        "description": "Directory for mentor data storage"
+      }
+    }
+  }
+}

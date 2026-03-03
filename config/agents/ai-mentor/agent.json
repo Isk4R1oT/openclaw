@@ -1,0 +1,97 @@
+{
+  "$schema": "https://openclaw.sh/schemas/agent.json",
+  "name": "AI Mentor",
+  "description": "Персональный ментор по AI/ML — ежедневные занятия, статьи, задания, отслеживание прогресса",
+  "model": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "maxTokens": 8192
+  },
+  "skills": [
+    "ai-mentor",
+    "study-session",
+    "curriculum-tracker",
+    "knowledge-graph",
+    "spaced-repetition",
+    "arxiv-reader",
+    "paper-research",
+    "ml-feed",
+    "literature-review",
+    "citation-tracker",
+    "conference-tracker",
+    "assignment-manager",
+    "coding-challenges",
+    "math-drills",
+    "quiz-master",
+    "flashcard-generator",
+    "peer-review-sim",
+    "ml-code-review",
+    "pytorch-patterns",
+    "jax-patterns",
+    "debug-ml",
+    "experiment-tracker",
+    "concept-explainer",
+    "math-foundations",
+    "system-design-ml",
+    "architecture-patterns",
+    "optimization-theory",
+    "information-theory",
+    "nlp-deep-dive",
+    "cv-deep-dive",
+    "rl-deep-dive",
+    "generative-models",
+    "multimodal-ai",
+    "ai-safety",
+    "mlops-practices",
+    "model-serving",
+    "data-engineering",
+    "feature-store-design",
+    "ab-testing",
+    "interview-prep",
+    "portfolio-builder",
+    "open-source-contributor",
+    "blog-writer",
+    "conference-prep",
+    "learning-analytics",
+    "weekly-review",
+    "monthly-review",
+    "goal-setter",
+    "focus-timer",
+    "accountability-partner"
+  ],
+  "plugins": [
+    "study-tracker",
+    "curriculum",
+    "telegram",
+    "memory-core"
+  ],
+  "channels": {
+    "telegram": {
+      "enabled": true
+    }
+  },
+  "memory": {
+    "enabled": true,
+    "autoSave": true
+  },
+  "cron": [
+    {
+      "schedule": "0 7 * * *",
+      "prompt": "Доброе утро! Используй ml_feed чтобы найти свежие статьи по AI/ML. Проверь reading_list — если есть непрочитанные статьи, напомни о них. Проверь flashcard_review — если есть карточки на повторение, предложи начать с них. Покажи study_session_status.",
+      "target": "main",
+      "description": "Утренний брифинг: статьи, карточки, статус"
+    },
+    {
+      "schedule": "0 21 * * *",
+      "prompt": "Вечерняя проверка: вызови study_session_status. Если сегодня не достигнута цель в 2 часа — напомни и предложи короткую сессию. Проверь assignment_list на просроченные задания. Создай 2-3 flashcard по сегодняшним темам если были сессии.",
+      "target": "main",
+      "description": "Вечерняя проверка: цели, задания, карточки"
+    },
+    {
+      "schedule": "0 18 * * 0",
+      "prompt": "Сегодня воскресенье — время еженедельного обзора! Вызови study_history days=7, knowledge_stats, curriculum_status, assignment_list status=all limit=20. Составь подробный еженедельный отчёт: что изучили, сколько часов, какие концепции освоены, что нужно повторить, план на следующую неделю.",
+      "target": "main",
+      "description": "Еженедельный обзор по воскресеньям"
+    }
+  ]
+}

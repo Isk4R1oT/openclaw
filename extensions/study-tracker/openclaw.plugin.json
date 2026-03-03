@@ -1,0 +1,19 @@
+{
+  "id": "study-tracker",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "dailyGoalMinutes": {
+        "type": "number",
+        "default": 120,
+        "description": "Daily study goal in minutes"
+      },
+      "dataDir": {
+        "type": "string",
+        "default": "~/.mentor",
+        "description": "Directory for mentor data storage"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@openclaw/study-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Mentor study session tracking, time management, and assignment system",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

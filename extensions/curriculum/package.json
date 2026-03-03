@@ -1,0 +1,12 @@
+{
+  "name": "@openclaw/curriculum",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Mentor curriculum management, knowledge graph, and spaced repetition system",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
