@@ -1,0 +1,34 @@
+{
+  "agents": {
+    "defaults": {
+      "model": "claude-sonnet-4-6",
+      "workspace": "/app/workspace",
+      "maxConcurrent": 3,
+      "userTimezone": "Europe/Moscow",
+      "skills": ["yougile"]
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["1330607337", "857020315", "396338444"],
+      "groupPolicy": "open",
+      "groups": {
+        "*": {
+          "requireMention": false
+        }
+      },
+      "streaming": "partial",
+      "textChunkLimit": 4000,
+      "replyToMode": "first",
+      "ackReaction": "\ud83d\udcdd",
+      "errorPolicy": "reply"
+    }
+  },
+  "gateway": {
+    "bind": "0.0.0.0",
+    "port": 18789
+  }
+}
